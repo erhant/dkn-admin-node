@@ -14,6 +14,8 @@ def subscribe_topic(topic):
     response = requests.post(f"http://0.0.0.0:8646/relay/v1/subscriptions", data=json.dumps([topic]), headers={"Content-Type": "application/json"})
     if response.status_code == 200:
         return True
+    elif response.status_code == 404:
+        return False
     else:
         raise ValueError("Failed to subscribe topic")
 
