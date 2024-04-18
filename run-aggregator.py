@@ -1,7 +1,7 @@
 import logging
 import time
 
-from rbloom import Bloom
+from fastbloom_rs import BloomFilter
 
 from src.config import config
 from src.dria_requests import DriaClient
@@ -22,8 +22,7 @@ class Aggregator:
         self.waku = WakuClient()
         self.bert = BertEmbedding()
         self.NODE_ID = "node-1"
-        self.bf = Bloom(1000, 0.01)
-        self.hash_func = self.bf.hash_func
+        self.bloom = BloomFilter(128, 0.01)
 
     @staticmethod
     def initialize_dria_client():
@@ -75,8 +74,9 @@ class Aggregator:
                 return
 
             bf_bytes = job_data['bloom_filter']
-            self.bf.load_bytes(bf_bytes, self.hash_func)
-            truthful_nodes = [result for result in topic_results if self.bf]
+            bloom = BloomFilter.from_bytes(bf_bytes, self.bloom.hashes())
+
+            truthful_nodes = [result for result in topic_results if bloom.contains(result['node_id'])]
 
             if len(truthful_nodes) == config.COMPUTE_BY_JOB:
                 texts = [result['text'] for result in truthful_nodes]
@@ -92,16 +92,5 @@ class Aggregator:
 
 
 if __name__ == "__main__":
-    def hash_func(obj):
-        return hash(obj)
-
-
-    from fastbloom_rs import BloomFilter
-
-    bloom = BloomFilter(128, 0.01)
-    bloom.add(b"helloworld")
-    by = bloom.get_bytes()
-    print(by.hex())
-
     aggregator = Aggregator()
     aggregator.fetch_and_process_jobs()
