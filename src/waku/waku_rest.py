@@ -10,7 +10,7 @@ class WakuClient:
     This class provides a client to interact with the Waku node which builded with Compose.
     """
     def __init__(self):
-        self.base_url = "http://0.0.0.0:8002"
+        self.base_url = "http://127.0.0.1:8645"
 
     def health_check(self):
         """
