@@ -21,11 +21,10 @@ class Aggregator:
         self.dria_client = self.initialize_dria_client()
         self.waku = WakuClient()
         self.bert = BertEmbedding()
-        self.NODE_ID = "node-1"
         self.bloom = BloomFilter(128, 0.01)
 
     @staticmethod
-    def initialize_dria_client():
+    def initialize_dria_client() -> DriaClient:
         """Initialize Dria client with secret auth key.
 
         Returns:
@@ -57,7 +56,7 @@ class Aggregator:
                 logging.error(f"Error during job fetching and processing: {e}")
                 time.sleep(10)  # Sleep before retrying to ensure we don't hammer the system or service
 
-    def process_job(self, job_id):
+    def process_job(self, job_id: str):
         """Process an individual job.
 
         Args:

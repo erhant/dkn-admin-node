@@ -1,5 +1,3 @@
-import base64
-import json
 import logging
 import time
 import uuid
@@ -22,7 +20,7 @@ class Monitor:
         self.waku = WakuClient()
 
     @staticmethod
-    def initialize_client():
+    def initialize_client() -> DriaClient:
         """
         Initialize the DRIA client with the secret authentication key.
 
@@ -35,7 +33,7 @@ class Monitor:
             return client
         except Exception as e:
             logging.error(f"Failed to initialize DRIA Client: {e}")
-            return None
+            raise  # Raising to ensure failure in client initialization stops the process
 
     def heartbeat(self):
         """
@@ -62,7 +60,7 @@ class Monitor:
                 logging.error(f"Error during heartbeat process: {e}")
                 time.sleep(config.POLLING_INTERVAL)  # Wait before retrying the entire process
 
-    def send_heartbeat(self, uuid_):
+    def send_heartbeat(self, uuid_: str) -> bool:
         """
         Sends a heartbeat message to the network.
 
@@ -81,7 +79,7 @@ class Monitor:
         logging.info(f"Sent heartbeat: {uuid_}")
         return True
 
-    def check_heartbeat(self, uuid_):
+    def check_heartbeat(self, uuid_: str) -> bool:
         """
         Checks for a response to a previously sent heartbeat.
 

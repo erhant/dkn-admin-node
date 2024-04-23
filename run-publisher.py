@@ -2,12 +2,13 @@ import logging
 import time
 
 import sha3
-from rbloom import Bloom
+from fastbloom_rs import BloomFilter
 
 from src.config import config
 from src.dria_requests import DriaClient
+from src.models import PublishModel
 from src.utils.ec import recover_public_key, sign_address
-from src.utils.messaging_utils import json_to_base64
+from src.utils.messaging_utils import job_to_base64
 from src.waku.waku_rest import WakuClient
 
 # Configure logging
@@ -21,11 +22,10 @@ class Publisher:
 
     def __init__(self):
         self.dria_client = self.initialize_client()
-        self.signature = self.sign_message()
         self.waku = WakuClient()
 
     @staticmethod
-    def initialize_client():
+    def initialize_client() -> DriaClient:
         """
         Initialize the DRIA client with the secret authentication key.
 
@@ -38,23 +38,23 @@ class Publisher:
             return client
         except Exception as e:
             logging.error(f"Failed to initialize DRIA Client: {e}")
-            return None
+            raise
 
     @staticmethod
-    def sign_message():
+    def sign_message(job) -> str:
         """
-        Signs a predefined message using a private key.
+        Siga job using a private key.
 
         Returns:
             str: Signature string.
         """
         try:
-            return sign_address(config.DRIA_PRIVATE_KEY, config.ADDRESS_MESSAGE)
+            return sign_address(config.DRIA_PRIVATE_KEY, job)
         except Exception as e:
             logging.error(f"Error signing message: {e}")
             return ""
 
-    def handle_available_jobs(self, available_nodes):
+    def handle_available_jobs(self, available_nodes: list):
         """
         Handle job retrieval and processing if available.
 
@@ -64,7 +64,7 @@ class Publisher:
         Returns:
             None
         """
-        bf = Bloom(128, 0.01)
+        bf = BloomFilter(128, 0.01)
         for node in available_nodes:
             bf.add(node)
 
@@ -79,7 +79,7 @@ class Publisher:
         except Exception as e:
             logging.error(f"Failed to handle available jobs: {e}")
 
-    def publish_job(self, job, bf):
+    def publish_job(self, job: dict, bf: BloomFilter):
         """
         Publishes a job to the topic specified in the configuration.
 
@@ -91,14 +91,15 @@ class Publisher:
             None
         """
         try:
-            self.waku.push_content_topic(json_to_base64({
+            job = PublishModel(**{
                 "jobId": job["id"],
-                "signature": self.signature,
-                "filter": bf.save_bytes(),
+                "filter": {"hex": bf.get_bytes(), "hashes": bf.hashes()},
                 "prompt": job["prompt"],
                 "deadline": time.time() + 60 * config.JOB_TIMEOUT_MINUTE,
                 "pubKey": job["pubKey"],
-            }), config.INPUT_CONTENT_TOPIC)
+            }).json()
+            signature = self.sign_message(job)
+            self.waku.push_content_topic(job_to_base64(signature, signature), config.INPUT_CONTENT_TOPIC)
         except Exception as e:
             logging.error(f"Failed to publish job: {e}")
 
@@ -120,7 +121,7 @@ class Publisher:
                 time.sleep(config.POLLING_INTERVAL)
 
     @staticmethod
-    def decrypt_nodes(available_nodes):
+    def decrypt_nodes(available_nodes: list) -> list:
         """
         Decrypts the available nodes to get the address.
 

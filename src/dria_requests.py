@@ -6,6 +6,19 @@ from src.config import config
 
 
 class DriaClient:
+    """
+    DRIA client to handle requests to the DRIA API.
+
+    Dria API is a service that provides a RESTful API for managing jobs and nodes in a decentralized network.
+
+    Attributes:
+        auth (str): Authentication token for the DRIA API.
+        base_url (str): Base URL for the DRIA API.
+        headers (dict): Headers to be included in the request.
+        session (requests.Session): Session object for connection pooling.
+
+    """
+
     def __init__(self, auth):
         self.auth = auth
         self.base_url = config.DRIA_BASE_URL
@@ -42,17 +55,9 @@ class DriaClient:
         """Fetch list of jobs from the API"""
         return self._make_request('get', '/jobs')
 
-    def post_job(self, job_data):
-        """Post new job data"""
-        return self._make_request('post', '/jobs', data=job_data)
-
-    def is_available(self):
-        """Check availability of services"""
-        return self._make_request('get', '/current_jobs')
-
     def add_available_nodes(self, nodes):
         """Add available nodes to the database"""
-        return self._make_request('post', '/available_nodes', data=nodes)
+        return self._make_request('post', '/available_nodes/add', data=nodes)
 
     def fetch_job_details(self, job_id):
         """Fetch job details"""
@@ -64,4 +69,4 @@ class DriaClient:
 
     def get_available_nodes(self):
         """Fetch available nodes"""
-        return self._make_request('get', '/available_nodes')
+        return self._make_request('get', '/available_nodes/get')
