@@ -5,13 +5,11 @@ import os
 class Config:
     NODE_AUTH_KEY = os.getenv('NODE_AUTH_KEY', "default_auth_key")
     DRIA_PRIVATE_KEY = os.getenv('DRIA_PRIVATE_KEY', "")
-    ADDRESS_MESSAGE = "m1"
     MONITORING_INTERVAL = 10
     POLLING_INTERVAL = 5
     INPUT_CONTENT_TOPIC = "/dria/2/synthesis/proto"
-    JOB_TIMEOUT_MINUTE = 3
+    TASK_TIMEOUT_MINUTE = 3
     COMPUTE_BY_JOB = 3
-    AVAILABLE_MESSAGE = "a2"
     DRIA_BASE_URL = os.getenv('DRIA_BASE_URL', "http://0.0.0.0:8002")
 
 

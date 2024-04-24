@@ -3,7 +3,7 @@ from ecies import decrypt
 from ecies.utils import generate_eth_key
 
 
-def generate_job_keys():
+def generate_task_keys():
     """Generate an elliptic curve key pair.
 
     Returns:

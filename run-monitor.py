@@ -1,9 +1,13 @@
+import json
 import logging
 import time
 import uuid
 
+import sha3
+
 from src.config import config
 from src.dria_requests import DriaClient
+from src.utils.ec import recover_public_key
 from src.utils.messaging_utils import json_to_base64, base64_to_json
 from src.waku.waku_rest import WakuClient
 
@@ -71,7 +75,7 @@ class Monitor:
             bool: True if successful, False otherwise.
         """
         status = self.waku.push_content_topic(json_to_base64({"message": uuid_}),
-                                              "/dria/2/heartbeat/proto")
+                                              "/dria/0/heartbeat/proto")
         if not status:
             logging.error(f"Failed to send heartbeat: {uuid_}")
             return False
@@ -89,12 +93,35 @@ class Monitor:
         Returns:
             bool: True if a response is received, False otherwise.
         """
-        topic = self.waku.get_content_topic(f"/dria/2/{uuid}/proto")
+        topic = self.waku.get_content_topic(f"/dria/0/{uuid}/proto")
         if topic:
-            self.dria_client.add_available_nodes(base64_to_json(topic))
+            nodes_as_address = self.decrypt_nodes(topic, json.dumps({"uuid": uuid_}))
+            self.dria_client.add_available_nodes(base64_to_json(nodes_as_address))
             return True
         logging.error(f"Failed to receive heartbeat response: {uuid_}")
         return False
+
+    @staticmethod
+    def decrypt_nodes(available_nodes: list, msg: str) -> list:
+        """
+        Decrypts the available nodes to get the address.
+
+        Args:
+            available_nodes (list): Encrypted node identifiers.
+            msg: (str): Message to decrypt the heartbeat results.
+
+        Returns:
+            list: List of decrypted node addresses.
+        """
+        node_address = []
+        for node in available_nodes:
+            try:
+                public_key = recover_public_key(node, msg)
+                address = sha3.keccak_256(public_key[2:]).digest()[-20:].hex()
+                node_address.append(address)
+            except Exception as e:
+                logging.error(f"Failed to decrypt node: {e}")
+        return node_address
 
 
 if __name__ == "__main__":

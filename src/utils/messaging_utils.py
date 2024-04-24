@@ -22,9 +22,9 @@ def json_to_base64(data):
     return base64.b64encode(json.dumps(data).encode('utf-8')).decode('utf-8')
 
 
-def job_to_base64(signature, data):
+def task_to_base64(signature, data):
     """
-    Convert job data to a publishable format.
+    Convert task data to a publishable format.
 
     :param signature: Signature of Admin Node
     :param data: Job data

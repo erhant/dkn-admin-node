@@ -1,14 +1,11 @@
 import logging
 import time
 
-import sha3
-from fastbloom_rs import BloomFilter
-
 from src.config import config
 from src.dria_requests import DriaClient
-from src.models import PublishModel
-from src.utils.ec import recover_public_key, sign_address
-from src.utils.messaging_utils import job_to_base64
+from src.models import TaskModel
+from src.utils.ec import sign_address
+from src.utils.messaging_utils import task_to_base64
 from src.waku.waku_rest import WakuClient
 
 # Configure logging
@@ -17,7 +14,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class Publisher:
     """
-    Publisher class to handle job retrieval and processing.
+    Publisher class to handle task retrieval and processing.
     """
 
     def __init__(self):
@@ -41,108 +38,75 @@ class Publisher:
             raise
 
     @staticmethod
-    def sign_message(job) -> str:
+    def sign_message(task) -> str:
         """
-        Siga job using a private key.
+        Sign task using a private key.
 
         Returns:
             str: Signature string.
         """
         try:
-            return sign_address(config.DRIA_PRIVATE_KEY, job)
+            return sign_address(config.DRIA_PRIVATE_KEY, task)
         except Exception as e:
             logging.error(f"Error signing message: {e}")
             return ""
 
-    def handle_available_jobs(self, available_nodes: list):
+    def handle_available_tasks(self):
         """
-        Handle job retrieval and processing if available.
-
-        Args:
-            available_nodes (list): List of available node addresses.
+        Handle task retrieval and processing if available.
 
         Returns:
             None
         """
-        bf = BloomFilter(128, 0.01)
-        for node in available_nodes:
-            bf.add(node)
 
         try:
-            jobs = self.dria_client.get_jobs()
-            if jobs:
-                logging.info(f"{len(jobs)} jobs retrieved, ready for processing.")
-                for job in jobs:
-                    self.publish_job(job, bf)
+            tasks = self.dria_client.fetch_tasks()
+            if tasks:
+                logging.info(f"{len(tasks)} tasks retrieved, ready for processing.")
+                for task in tasks:
+                    self.publish_task(task)
             else:
-                logging.warning("No available jobs after retrieval attempt.")
+                logging.warning("No available tasks after retrieval attempt.")
         except Exception as e:
-            logging.error(f"Failed to handle available jobs: {e}")
+            logging.error(f"Failed to handle available tasks: {e}")
 
-    def publish_job(self, job: dict, bf: BloomFilter):
+    def publish_task(self, task: dict):
         """
-        Publishes a job to the topic specified in the configuration.
+        Publishes a task to the topic specified in the configuration.
 
         Args:
-            job (dict): Job data.
-            bf (Bloom): Bloom filter with node addresses.
+            task (dict): Task data.
 
         Returns:
             None
         """
         try:
-            job = PublishModel(**{
-                "jobId": job["id"],
-                "filter": {"hex": bf.get_bytes(), "hashes": bf.hashes()},
-                "prompt": job["prompt"],
-                "deadline": time.time() + 60 * config.JOB_TIMEOUT_MINUTE,
-                "pubKey": job["pubKey"],
+            task = TaskModel(**{
+                "taskId": task["id"],
+                "filter": task["filter"],
+                "prompt": task["prompt"],
+                "deadline": time.time() + 60 * config.TASK_TIMEOUT_MINUTE,
+                "pubKey": task["pubKey"],
             }).json()
-            signature = self.sign_message(job)
-            self.waku.push_content_topic(job_to_base64(signature, signature), config.INPUT_CONTENT_TOPIC)
+            signature = self.sign_message(task)
+            self.waku.push_content_topic(task_to_base64(signature, signature), config.INPUT_CONTENT_TOPIC)
         except Exception as e:
-            logging.error(f"Failed to publish job: {e}")
+            logging.error(f"Failed to publish task: {e}")
 
-    def check_and_publish_jobs(self):
+    def check_and_publish_tasks(self):
         """
-        Continuously checks for job availability and processes any found.
+        Continuously checks for task availability and processes any found.
         """
         while True:
             try:
-                available_nodes = self.dria_client.get_available_nodes()
-                if available_nodes:
-                    nodes_as_address = self.decrypt_nodes(available_nodes)
-                    self.handle_available_jobs(nodes_as_address)
-                else:
-                    logging.info("No available nodes currently.")
+                self.handle_available_tasks()
             except Exception as e:
-                logging.error(f"An error occurred while checking for jobs: {e}")
+                logging.error(f"An error occurred while checking for tasks: {e}")
             finally:
                 time.sleep(config.POLLING_INTERVAL)
-
-    @staticmethod
-    def decrypt_nodes(available_nodes: list) -> list:
-        """
-        Decrypts the available nodes to get the address.
-
-        Args:
-            available_nodes (list): Encrypted node identifiers.
-
-        Returns:
-            list: List of decrypted node addresses.
-        """
-        node_address = []
-        for node in available_nodes:
-            try:
-                public_key = recover_public_key(node, config.AVAILABLE_MESSAGE)
-                address = sha3.keccak_256(public_key[2:]).digest()[-20:].hex()
-                node_address.append(address)
-            except Exception as e:
-                logging.error(f"Failed to decrypt node: {e}")
-        return node_address
 
 
 if __name__ == "__main__":
     publisher = Publisher()
-    if publisher.dria_client and publisher.signature:
-        publisher.check_and_publish_jobs()
+    if publisher.dria_client:
+        publisher.check_and_publish_tasks()

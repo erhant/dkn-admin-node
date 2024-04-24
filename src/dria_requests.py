@@ -9,7 +9,7 @@ class DriaClient:
     """
     DRIA client to handle requests to the DRIA API.
 
-    Dria API is a service that provides a RESTful API for managing jobs and nodes in a decentralized network.
+    Dria API is a service that provides a RESTful API for managing tasks and nodes in a decentralized network.
 
     Attributes:
         auth (str): Authentication token for the DRIA API.
@@ -51,22 +51,14 @@ class DriaClient:
             logging.error(f"An error occurred: {e}")
             raise
 
-    def get_jobs(self):
-        """Fetch list of jobs from the API"""
-        return self._make_request('get', '/jobs')
-
     def add_available_nodes(self, nodes):
         """Add available nodes to the database"""
-        return self._make_request('post', '/available_nodes/add', data=nodes)
+        return self._make_request('post', '/nodes/add', data=nodes)
 
-    def fetch_job_details(self, job_id):
-        """Fetch job details"""
-        return self._make_request('get', f'/jobs/{job_id}')
+    def fetch_tasks(self):
+        """Fetch all tasks"""
+        return self._make_request('get', '/tasks/publisher')
 
-    def fetch_jobs(self):
-        """Fetch all jobs"""
-        return self._make_request('get', '/jobs')
-
-    def get_available_nodes(self):
-        """Fetch available nodes"""
-        return self._make_request('get', '/available_nodes/get')
+    def fetch_aggregation_tasks(self):
+        """Fetch aggregation tasks"""
+        return self._make_request('get', '/tasks/aggregation')
