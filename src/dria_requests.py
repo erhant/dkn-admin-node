@@ -20,7 +20,7 @@ class DriaClient:
     """
 
     def __init__(self):
-        self.base_url = config.DRIA_BASE_URL
+        self.base_url = config.dria_base_url
         logging.basicConfig(level=logging.INFO)
         self.session = requests.Session()  # Using session for connection pooling
 

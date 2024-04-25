@@ -37,7 +37,7 @@ def main():
 
     for task_class, num_workers in tasks.items():
         for _ in range(num_workers):
-            task_instance = task_class()
+            task_instance = task_class(config)
             thread = threading.Thread(target=thread_function, args=(task_instance,))
             threads.append(thread)
             thread.start()
