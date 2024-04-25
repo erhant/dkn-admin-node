@@ -64,7 +64,7 @@ class Monitor:
         """
         while True:
             uuid_ = str(uuid.uuid4())
-            payload = json.dumps({"uuid": uuid_, "timestamp": int(time.time())})
+            payload = json.dumps({"uuid": uuid_, "deadline": int(time.time() + self.config.monitoring_interval)})
             signed_uuid = self._sign_message(self.config.dria_private_key, payload)
             try:
                 if not self._send_heartbeat(payload, signed_uuid.hex()):

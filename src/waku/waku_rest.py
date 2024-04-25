@@ -20,7 +20,7 @@ class WakuClient:
     """
 
     def __init__(self):
-        self.base_url = config.WAKU_BASE_URL
+        self.base_url = config.waku_base_url
 
     def health_check(self):
         """
