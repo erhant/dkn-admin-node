@@ -1,4 +1,6 @@
+import logging
 import threading
+from typing import Dict, Type
 
 from run_aggregator import Aggregator
 from run_monitor import Monitor
@@ -6,25 +8,29 @@ from run_publisher import Publisher
 from src.config import Config
 
 config = Config()
+logger = logging.getLogger(__name__)
 
 
-def thread_function(obj):
-    obj.run()
+def thread_function(task_instance):
+    """Run the given task instance in a separate thread."""
+    try:
+        task_instance.run()
+    except Exception as e:
+        logger.error(f"Error occurred in {type(task_instance).__name__}: {e}")
 
 
-if __name__ == "__main__":
+def main():
     """
     Run all tasks in separate threads.
-    
+
     config.AGGREGATOR_WORKERS: Number of aggregator workers to run.
     config.MONITORING_WORKERS: Number of monitoring workers to run.
     config.PUBLISHER_WORKERS: Number of publisher workers to run.
-    
     """
-    tasks = {
-        Aggregator: config.AGGREGATOR_WORKERS,
-        Monitor: config.MONITORING_WORKERS,
-        Publisher: config.PUBLISHER_WORKERS,
+    tasks: Dict[Type, int] = {
+        Aggregator: config.aggregator_workers,
+        Monitor: config.monitoring_workers,
+        Publisher: config.publisher_workers,
     }
 
     threads = []
@@ -39,4 +45,9 @@ if __name__ == "__main__":
     for thread in threads:
         thread.join()
 
-    print("All tasks completed.")
+    logger.info("All tasks completed.")
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+    main()

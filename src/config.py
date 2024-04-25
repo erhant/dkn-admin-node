@@ -1,20 +1,44 @@
 import os
+from typing import Optional
 
 
-# Configuration class to encapsulate the environment variables
 class Config:
-    NODE_AUTH_KEY = os.getenv('NODE_AUTH_KEY', "default_auth_key")
-    DRIA_PRIVATE_KEY = os.getenv('DRIA_PRIVATE_KEY', "6472696164726961647269616472696164726961647269616472696164726961")
-    AGGREGATOR_WORKERS = os.getenv('AGGREGATOR_WORKERS', 1)
-    WAKU_BASE_URL = os.getenv('WAKU_BASE_URL', "http://127.0.0.0:8645")
-    PUBLISHER_WORKERS = os.getenv('PUBLISHER_WORKERS', 1)
-    MONITORING_WORKERS = os.getenv('MONITORING_WORKERS', 1)
-    MONITORING_INTERVAL = 10
-    POLLING_INTERVAL = 5
-    INPUT_CONTENT_TOPIC = "/dria/0/synth/proto"
-    TASK_TIMEOUT_MINUTE = 3
-    COMPUTE_BY_JOB = 3
-    DRIA_BASE_URL = os.getenv('DRIA_BASE_URL', "http://0.0.0.0:8002")
+    def __init__(self):
+        self.node_auth_key: str = self._get_env_var("NODE_AUTH_KEY", "default_auth_key")
+        self.dria_private_key: str = self._get_env_var("DRIA_PRIVATE_KEY",
+                                                       "6472696164726961647269616472696164726961647269616472696164726961")
+        self.aggregator_workers: int = self._get_env_var("AGGREGATOR_WORKERS", 1, int)
+        self.waku_base_url: str = self._get_env_var("WAKU_BASE_URL", "http://127.0.0.0:8645")
+        self.publisher_workers: str = self._get_env_var("PUBLISHER_WORKERS", 1, int)
+        self.monitoring_workers: int = self._get_env_var("MONITORING_WORKERS", 1, int)
+        self.monitoring_interval: int = 10
+        self.polling_interval: int = 5
+        self.input_content_topic: str = "/dria/0/synth/proto"
+        self.heartbeat_topic: str = "/dria/0/heartbeat/proto"
+        self.task_timeout_minute: int = 3
+        self.compute_by_job: int = 3
+        self.dria_base_url: str = self._get_env_var("DRIA_BASE_URL", "http://0.0.0.0:8002")
+
+    @staticmethod
+    def _get_env_var(key: str, default_value: Optional[str] = None, value_type: type = str) -> Optional[str, int]:
+        """
+        Retrieves an environment variable value from the system.
+
+        Args:
+            key (str): The name of the environment variable.
+            default_value (Optional[str]): The default value to return if the environment variable is not set.
+            value_type (type): The expected type of the environment variable value.
+
+        Returns:
+            Optional[str]: The value of the environment variable, or the default value if not set.
+        """
+        value = os.getenv(key, default_value)
+        if value is not None and value_type != str:
+            try:
+                value = value_type(value)
+            except ValueError:
+                raise ValueError(f"Invalid value for {key}: {value}")
+        return value
 
 
 # Load the config once during startup or when needed
