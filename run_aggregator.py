@@ -32,14 +32,14 @@ class Aggregator:
             DriaClient: Dria client object.
         """
         try:
-            client = DriaClient(auth=config.DRIA_AUTH_KEY)
+            client = DriaClient()
             logging.info("DRIA Client initialized successfully")
             return client
         except Exception as e:
             logging.error(f"Failed to initialize DRIA Client: {e}")
             raise  # Raising to ensure failure in client initialization stops the process
 
-    def fetch_and_process_tasks(self):
+    def run(self):
         """Continuously fetch and process tasks."""
         while True:
             try:
@@ -88,8 +88,3 @@ class Aggregator:
         else:
             logging.warning("Task timestamp is in the future.")
             return None
-
-
-if __name__ == "__main__":
-    aggregator = Aggregator()
-    aggregator.fetch_and_process_tasks()

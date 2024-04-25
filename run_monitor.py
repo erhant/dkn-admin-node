@@ -7,8 +7,8 @@ import sha3
 
 from src.config import config
 from src.dria_requests import DriaClient
-from src.utils.ec import recover_public_key
-from src.utils.messaging_utils import json_to_base64, base64_to_json
+from src.utils.ec import recover_public_key, sign_address
+from src.utils.messaging_utils import str_to_base64, base64_to_json
 from src.waku.waku_rest import WakuClient
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -24,6 +24,20 @@ class Monitor:
         self.waku = WakuClient()
 
     @staticmethod
+    def sign_message(uuid_) -> bytes:
+        """
+        Sign uuid using a private key.
+
+        Returns:
+            str: Signature string.
+        """
+        try:
+            return sign_address(config.DRIA_PRIVATE_KEY, uuid_)
+        except Exception as e:
+            logging.error(f"Error signing message: {e}")
+            raise
+
+    @staticmethod
     def initialize_client() -> DriaClient:
         """
         Initialize the DRIA client with the secret authentication key.
@@ -32,14 +46,14 @@ class Monitor:
             DriaClient: Initialized DRIA client object.
         """
         try:
-            client = DriaClient(auth=config.NODE_AUTH_KEY)
+            client = DriaClient()
             logging.info("DRIA Client initialized successfully")
             return client
         except Exception as e:
             logging.error(f"Failed to initialize DRIA Client: {e}")
             raise  # Raising to ensure failure in client initialization stops the process
 
-    def heartbeat(self):
+    def run(self):
         """
         Periodically sends a heartbeat to the node network and checks for responses.
 
@@ -48,8 +62,10 @@ class Monitor:
         """
         while True:
             uuid_ = str(uuid.uuid4())
+            payload = json.dumps({"uuid": uuid_})
+            signed_uuid = self.sign_message(payload)
             try:
-                if not self.send_heartbeat(uuid_):
+                if not self.send_heartbeat(payload, signed_uuid.hex()):
                     time.sleep(config.POLLING_INTERVAL)  # Short wait before retrying to send heartbeat
                     continue
 
@@ -64,23 +80,24 @@ class Monitor:
                 logging.error(f"Error during heartbeat process: {e}")
                 time.sleep(config.POLLING_INTERVAL)  # Wait before retrying the entire process
 
-    def send_heartbeat(self, uuid_: str) -> bool:
+    def send_heartbeat(self, payload: str, sign: str) -> bool:
         """
         Sends a heartbeat message to the network.
 
         Args:
-            uuid_ (str): The unique identifier for the heartbeat.
+            payload (str): The unique identifier for the heartbeat.
+            sign (str): The signature of the payload.
 
         Returns:
             bool: True if successful, False otherwise.
         """
-        status = self.waku.push_content_topic(json_to_base64({"message": uuid_}),
+        status = self.waku.push_content_topic(str_to_base64(sign+payload),
                                               "/dria/0/heartbeat/proto")
         if not status:
-            logging.error(f"Failed to send heartbeat: {uuid_}")
+            logging.error(f"Failed to send heartbeat: {payload}")
             return False
 
-        logging.info(f"Sent heartbeat: {uuid_}")
+        logging.info(f"Sent heartbeat: {payload}")
         return True
 
     def check_heartbeat(self, uuid_: str) -> bool:
@@ -93,7 +110,7 @@ class Monitor:
         Returns:
             bool: True if a response is received, False otherwise.
         """
-        topic = self.waku.get_content_topic(f"/dria/0/{uuid}/proto")
+        topic = self.waku.get_content_topic(f"/dria/0/{uuid_}/proto")
         if topic:
             nodes_as_address = self.decrypt_nodes(topic, json.dumps({"uuid": uuid_}))
             self.dria_client.add_available_nodes(base64_to_json(nodes_as_address))
@@ -122,8 +139,3 @@ class Monitor:
             except Exception as e:
                 logging.error(f"Failed to decrypt node: {e}")
         return node_address
-
-
-if __name__ == "__main__":
-    monitor = Monitor()
-    monitor.heartbeat()

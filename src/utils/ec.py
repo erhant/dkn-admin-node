@@ -1,5 +1,4 @@
 import coincurve
-from ecies import decrypt
 from ecies.utils import generate_eth_key
 
 
@@ -41,7 +40,7 @@ def recover_public_key(signature, message_digest):
         raise ValueError(f"Failed to recover public key: {e}")
 
 
-def sign_address(private_key, message):
+def sign_address(private_key, message) -> bytes:
     """Signs a message with a private key.
 
     Args:
@@ -70,7 +69,7 @@ def sign_address(private_key, message):
   h: 'ebb664f25695c02af0a02d558f63d804d93317dd7a0010c01da7b0aebd433406',
   s: 'cf17731822a54890bf91757dca8cd64c0fc65ee5d857222a73a6ea0b47e1f6781cf7f8152dfb42489e2c7cd7b8009adbd9600e722fe522fbba9eba9794a25e3400'
 }
-"""
+
 signature = "cf17731822a54890bf91757dca8cd64c0fc65ee5d857222a73a6ea0b47e1f6781cf7f8152dfb42489e2c7cd7b8009adbd9600e722fe522fbba9eba9794a25e3400"
 privkey = b"driadriadriadriadriadriadriadria"
 
@@ -107,3 +106,4 @@ commitment_ = hashlib.sha256(s + result_digest).digest()
 assert commitment_ == bytes.fromhex("f7d88c3ef604335ada2c13c7a430c21e8b8ae586c777f582cffe10fe6bcb8700")
 
 print("a")
+"""

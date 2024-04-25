@@ -4,6 +4,8 @@ import requests
 
 from src.config import config
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 class DriaClient:
     """
@@ -12,17 +14,13 @@ class DriaClient:
     Dria API is a service that provides a RESTful API for managing tasks and nodes in a decentralized network.
 
     Attributes:
-        auth (str): Authentication token for the DRIA API.
         base_url (str): Base URL for the DRIA API.
-        headers (dict): Headers to be included in the request.
         session (requests.Session): Session object for connection pooling.
 
     """
 
-    def __init__(self, auth):
-        self.auth = auth
+    def __init__(self):
         self.base_url = config.DRIA_BASE_URL
-        self.headers = {"Authorization": f"Bearer {self.auth}"}
         logging.basicConfig(level=logging.INFO)
         self.session = requests.Session()  # Using session for connection pooling
 
@@ -31,9 +29,9 @@ class DriaClient:
         url = f"{self.base_url}{endpoint}"
         try:
             if method.lower() == 'get':
-                response = self.session.get(url, headers=self.headers)
+                response = self.session.get(url)
             elif method.lower() == 'post':
-                response = self.session.post(url, headers=self.headers, json=data)
+                response = self.session.post(url, json=data)
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
 
@@ -57,7 +55,12 @@ class DriaClient:
 
     def fetch_tasks(self):
         """Fetch all tasks"""
-        return self._make_request('get', '/tasks/publisher')
+        tasks = self._make_request('get', '/tasks/publisher')
+        task_status, task_data = tasks.get("success", False), tasks.get("data", [])
+        if task_status:
+            return task_data
+        logging.warning(task_data["message"])
+        return []
 
     def fetch_aggregation_tasks(self):
         """Fetch aggregation tasks"""

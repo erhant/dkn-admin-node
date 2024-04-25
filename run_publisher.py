@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 
@@ -5,7 +6,7 @@ from src.config import config
 from src.dria_requests import DriaClient
 from src.models import TaskModel
 from src.utils.ec import sign_address
-from src.utils.messaging_utils import task_to_base64
+from src.utils.messaging_utils import str_to_base64
 from src.waku.waku_rest import WakuClient
 
 # Configure logging
@@ -30,7 +31,7 @@ class Publisher:
             DriaClient: Initialized DRIA client object.
         """
         try:
-            client = DriaClient(auth=config.NODE_AUTH_KEY)
+            client = DriaClient()
             logging.info("DRIA Client initialized successfully")
             return client
         except Exception as e:
@@ -38,7 +39,7 @@ class Publisher:
             raise
 
     @staticmethod
-    def sign_message(task) -> str:
+    def sign_message(task) -> bytes:
         """
         Sign task using a private key.
 
@@ -49,7 +50,7 @@ class Publisher:
             return sign_address(config.DRIA_PRIVATE_KEY, task)
         except Exception as e:
             logging.error(f"Error signing message: {e}")
-            return ""
+            raise e
 
     def handle_available_tasks(self):
         """
@@ -65,8 +66,6 @@ class Publisher:
                 logging.info(f"{len(tasks)} tasks retrieved, ready for processing.")
                 for task in tasks:
                     self.publish_task(task)
-            else:
-                logging.warning("No available tasks after retrieval attempt.")
         except Exception as e:
             logging.error(f"Failed to handle available tasks: {e}")
 
@@ -89,11 +88,11 @@ class Publisher:
                 "pubKey": task["pubKey"],
             }).json()
             signature = self.sign_message(task)
-            self.waku.push_content_topic(task_to_base64(signature, signature), config.INPUT_CONTENT_TOPIC)
+            self.waku.push_content_topic(str_to_base64(signature.hex() + json.dumps(task)), config.INPUT_CONTENT_TOPIC)
         except Exception as e:
             logging.error(f"Failed to publish task: {e}")
 
-    def check_and_publish_tasks(self):
+    def run(self):
         """
         Continuously checks for task availability and processes any found.
         """
@@ -104,9 +103,3 @@ class Publisher:
                 logging.error(f"An error occurred while checking for tasks: {e}")
             finally:
                 time.sleep(config.POLLING_INTERVAL)
-
-
-if __name__ == "__main__":
-    publisher = Publisher()
-    if publisher.dria_client:
-        publisher.check_and_publish_tasks()
