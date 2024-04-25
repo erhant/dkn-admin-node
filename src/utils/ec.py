@@ -63,6 +63,8 @@ def sign_address(private_key, message) -> bytes:
     return private_key.sign_recoverable(message_bytes)
 
 
+
+
 """
 {
   e: '04fc12673040ea24f29b00886d024809612515cbd6d731dec38b9fe19808c5a3c2536af20c5eed362c53eec092c102c83abaa48377429f844bdce7e20cb13e13b8f7ef6c3e0baab69bc4bb6e9c529aefd81a229aa14f349f5eec94751b05d64ec264ea06d52d80f0ed33cc9f82bf811140518a074796cb01dc1981e220',

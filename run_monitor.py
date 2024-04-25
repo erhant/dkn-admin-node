@@ -62,7 +62,7 @@ class Monitor:
         """
         while True:
             uuid_ = str(uuid.uuid4())
-            payload = json.dumps({"uuid": uuid_})
+            payload = json.dumps({"uuid": uuid_, "timestamp": int(time.time())})
             signed_uuid = self.sign_message(payload)
             try:
                 if not self.send_heartbeat(payload, signed_uuid.hex()):
@@ -112,7 +112,7 @@ class Monitor:
         """
         topic = self.waku.get_content_topic(f"/dria/0/{uuid_}/proto")
         if topic:
-            nodes_as_address = self.decrypt_nodes(topic, json.dumps({"uuid": uuid_}))
+            nodes_as_address = self.decrypt_nodes(topic["signature"],uuid_)
             self.dria_client.add_available_nodes(base64_to_json(nodes_as_address))
             return True
         logging.error(f"Failed to receive heartbeat response: {uuid_}")

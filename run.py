@@ -23,7 +23,7 @@ if __name__ == "__main__":
     """
     tasks = {
         Aggregator: config.AGGREGATOR_WORKERS,
-       Monitor: config.MONITORING_WORKERS,
+        Monitor: config.MONITORING_WORKERS,
         Publisher: config.PUBLISHER_WORKERS,
     }
 
