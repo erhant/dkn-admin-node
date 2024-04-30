@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "admin-nodes"
+version = "0.1.0"
+description = "Dria Admin Node Repository"
+authors = ["anilaltuner <anil@firstbatch.xyz>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+requests = "2.28.2"
+fastbloom-rs = "0.5.9"
+pydantic = "1.9.0"
+numpy = "1.26.4"
+scikit-learn = "1.4.2"
+transformers = "4.40.1"
+eciespy = "0.4.1"
+coincurve = "18.0.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
