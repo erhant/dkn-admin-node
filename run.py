@@ -25,10 +25,12 @@ def main():
     config.MONITORING_WORKERS: Number of monitoring workers to run.
     config.PUBLISHER_WORKERS: Number of publisher workers to run.
     """
+    print("Starting tasks...")
+    print(config.monitoring_workers, config.aggregator_workers, config.publisher_workers)
     tasks: Dict[Type, int] = {
-        # Aggregator: config.aggregator_workers,
+        Aggregator: config.aggregator_workers,
         Monitor: config.monitoring_workers,
-        # Publisher: config.publisher_workers,
+        Publisher: config.publisher_workers,
     }
 
     threads = []

@@ -4,7 +4,7 @@ from ecies.utils import generate_eth_key
 
 def uncompressed_public_key(public_key: str) -> bytes:
     """
-
+    Convert a compressed public key to an uncompressed public key.
 
     :param public_key:
     :return:
