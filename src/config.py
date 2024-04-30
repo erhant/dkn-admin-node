@@ -17,7 +17,7 @@ class Config:
         self.heartbeat_topic: str = "/dria/0/heartbeat/proto"
         self.task_timeout_minute: int = 3
         self.compute_by_job: int = 3
-        self.dria_base_url: str = self._get_env_var("DRIA_BASE_URL", "http://0.0.0.0:8002")
+        self.dria_base_url: str = self._get_env_var("DRIA_BASE_URL", "http://0.0.0.0:8006")
 
     @staticmethod
     def _get_env_var(key: str, default_value: Optional[str] = None, value_type: type = str):

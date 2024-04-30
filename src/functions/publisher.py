@@ -2,11 +2,10 @@ import logging
 import time
 
 from src.config import Config
-from src.dria_requests import DriaClient
+from src.dria import DriaClient
 from src.models import TaskModel
-from src.utils.ec import sign_address
-from src.utils.messaging_utils import str_to_base64
-from src.waku.waku_rest import WakuClient
+from src.utils import sign_address, str_to_base64
+from src.waku import WakuClient
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +20,7 @@ class Publisher:
         self.dria_client = self._initialize_client()
         self.waku = WakuClient()
 
-    @staticmethod
-    def _initialize_client() -> DriaClient:
+    def _initialize_client(self) -> DriaClient:
         """
         Initialize the DRIA client with the secret authentication key.
 
@@ -30,7 +28,7 @@ class Publisher:
             DriaClient: Initialized DRIA client object.
         """
         try:
-            client = DriaClient()
+            client = DriaClient(self.config)
             logger.info("DRIA Client initialized successfully")
             return client
         except Exception as e:

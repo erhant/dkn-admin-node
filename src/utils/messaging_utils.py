@@ -1,5 +1,4 @@
 import base64
-import json
 
 
 def base64_to_json(data):
@@ -9,7 +8,7 @@ def base64_to_json(data):
     :param data: Encoded data from Waku
     :return: JSON data
     """
-    return json.loads(base64.b64decode(data).decode('utf-8'))
+    return base64.b64decode(data).decode('utf-8')
 
 
 def str_to_base64(data):

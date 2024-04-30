@@ -2,7 +2,6 @@ import logging
 
 import requests
 
-from src.config import config
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -19,7 +18,7 @@ class DriaClient:
 
     """
 
-    def __init__(self):
+    def __init__(self, config):
         self.base_url = config.dria_base_url
         logging.basicConfig(level=logging.INFO)
         self.session = requests.Session()  # Using session for connection pooling

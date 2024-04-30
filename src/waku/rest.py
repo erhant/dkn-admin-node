@@ -5,8 +5,8 @@ from typing import Dict, List, Union
 
 import requests
 
+from src.models import WakuSubscriptionError, WakuClientError, WakuContentTopicError
 from src.config import config
-from src.exceptions import WakuSubscriptionError, WakuClientError, WakuContentTopicError
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -75,6 +75,11 @@ class WakuClient:
         try:
             response = requests.get(f"{self.base_url}/relay/v1/auto/messages/{urllib.parse.quote_plus(content_topic)}",
                                     headers={"Accept": "application/json"})
+            if response.status_code == 404:
+                self.subscribe_topic(urllib.parse.quote_plus(content_topic))
+                response = requests.get(
+                    f"{self.base_url}/relay/v1/auto/messages/{urllib.parse.quote_plus(content_topic)}",
+                    headers={"Accept": "application/json"})
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:

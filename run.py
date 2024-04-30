@@ -2,9 +2,7 @@ import logging
 import threading
 from typing import Dict, Type
 
-from run_aggregator import Aggregator
-from run_monitor import Monitor
-from run_publisher import Publisher
+from src.functions import Monitor, Publisher, Aggregator
 from src.config import Config
 
 config = Config()
@@ -28,9 +26,9 @@ def main():
     config.PUBLISHER_WORKERS: Number of publisher workers to run.
     """
     tasks: Dict[Type, int] = {
-        Aggregator: config.aggregator_workers,
+        # Aggregator: config.aggregator_workers,
         Monitor: config.monitoring_workers,
-        Publisher: config.publisher_workers,
+        # Publisher: config.publisher_workers,
     }
 
     threads = []

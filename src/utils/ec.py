@@ -2,6 +2,18 @@ import coincurve
 from ecies.utils import generate_eth_key
 
 
+def uncompressed_public_key(public_key: str) -> bytes:
+    """
+
+
+    :param public_key:
+    :return:
+    """
+    public_key_bytes = bytes.fromhex(public_key)
+    public_key = coincurve.PublicKey(public_key_bytes)
+    return public_key.format(compressed=False)
+
+
 def generate_task_keys():
     """Generate an elliptic curve key pair.
 
@@ -34,7 +46,7 @@ def recover_public_key(signature, message_digest):
     try:
 
         # Attempt to recover the public key from signature and message
-        pk = coincurve.PublicKey.from_signature_and_message(signature, message_digest, hasher=None)
+        pk = coincurve.PublicKey.from_signature_and_message(signature, message_digest)
         return pk.format(compressed=True).hex()
     except Exception as e:
         raise ValueError(f"Failed to recover public key: {e}")
@@ -64,7 +76,6 @@ def sign_address(private_key, message) -> bytes:
 
 
 
-
 """
 {
   e: '04fc12673040ea24f29b00886d024809612515cbd6d731dec38b9fe19808c5a3c2536af20c5eed362c53eec092c102c83abaa48377429f844bdce7e20cb13e13b8f7ef6c3e0baab69bc4bb6e9c529aefd81a229aa14f349f5eec94751b05d64ec264ea06d52d80f0ed33cc9f82bf811140518a074796cb01dc1981e220',
@@ -72,7 +83,7 @@ def sign_address(private_key, message) -> bytes:
   s: 'cf17731822a54890bf91757dca8cd64c0fc65ee5d857222a73a6ea0b47e1f6781cf7f8152dfb42489e2c7cd7b8009adbd9600e722fe522fbba9eba9794a25e3400'
 }
 
-signature = "cf17731822a54890bf91757dca8cd64c0fc65ee5d857222a73a6ea0b47e1f6781cf7f8152dfb42489e2c7cd7b8009adbd9600e722fe522fbba9eba9794a25e3400"
+signature = "410ffea37fe71725796d107cda2d6d752a8f9f8fd315f57edec18795d72f0f7b45de5c351e8632370a30c6d8263660dc988177c444acde7488aed9dcd96989ff00"
 privkey = b"driadriadriadriadriadriadriadria"
 
 priv_key = coincurve.PrivateKey(privkey)

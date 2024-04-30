@@ -7,10 +7,9 @@ from typing import List
 import sha3
 
 from src.config import Config
-from src.dria_requests import DriaClient
-from src.utils.ec import recover_public_key, sign_address
-from src.utils.messaging_utils import str_to_base64, base64_to_json
-from src.waku.waku_rest import WakuClient
+from src.dria import DriaClient
+from src.utils import recover_public_key, sign_address, uncompressed_public_key, str_to_base64, base64_to_json
+from src.waku import WakuClient
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +50,7 @@ class Monitor:
             DriaClient: Initialized DRIA client object.
         """
         try:
-            client = DriaClient()
+            client = DriaClient(self.config)
             logger.info("DRIA Client initialized successfully")
             return client
         except Exception as e:
@@ -114,7 +113,7 @@ class Monitor:
         """
         topic = self.waku.get_content_topic(f"/dria/0/{uuid_}/proto")
         if topic:
-            nodes_as_address = [self._decrypt_nodes(base64_to_json(t["payload"])["signature"], uuid_) for t in topic]
+            nodes_as_address = self._decrypt_nodes([base64_to_json(t["payload"]) for t in topic], uuid_)
             self.dria_client.add_available_nodes(nodes_as_address)
             return True
         logger.error(f"Failed to receive heartbeat response: {uuid_}")
@@ -135,8 +134,9 @@ class Monitor:
         node_addresses = []
         for node in available_nodes:
             try:
-                public_key = recover_public_key(node, msg)
-                address = sha3.keccak_256(public_key[2:]).digest()[-20:].hex()
+                public_key = recover_public_key(bytes.fromhex(node), msg)
+                public_key = uncompressed_public_key(public_key)
+                address = sha3.keccak_256(public_key[1:]).digest()[-20:].hex()
                 node_addresses.append(address)
             except Exception as e:
                 logger.error(f"Failed to decrypt node: {e}")

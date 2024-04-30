@@ -5,10 +5,11 @@ from typing import Dict, Optional
 from fastbloom_rs import BloomFilter
 
 from src.config import Config
-from src.dria_requests import DriaClient
+
 from src.models import TaskModel
-from src.utils.bert import BertEmbedding
-from src.waku.waku_rest import WakuClient
+from src.dria import DriaClient
+from src.utils import BertEmbedding
+from src.waku import WakuClient
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +26,14 @@ class Aggregator:
         self.bert = BertEmbedding()
         self.bloom = BloomFilter(128, 0.01)
 
-    @staticmethod
-    def _initialize_dria_client() -> DriaClient:
+    def _initialize_dria_client(self) -> DriaClient:
         """Initialize Dria client with secret auth key.
 
         Returns:
             DriaClient: Dria client object.
         """
         try:
-            client = DriaClient()
+            client = DriaClient(self.config)
             logger.info("DRIA Client initialized successfully")
             return client
         except Exception as e:
