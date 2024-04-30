@@ -41,10 +41,9 @@ def recover_public_key(signature, message_digest):
 
     # Ensure the message is in bytes
     if isinstance(message_digest, str):
-        message_digest = message_digest.encode('utf-8')
+        message_digest = message_digest.encode("utf-8")
 
     try:
-
         # Attempt to recover the public key from signature and message
         pk = coincurve.PublicKey.from_signature_and_message(signature, message_digest)
         return pk.format(compressed=True).hex()
@@ -70,10 +69,9 @@ def sign_address(private_key, message) -> bytes:
     private_key = coincurve.PrivateKey(private_key_bytes)
 
     # Ensure the message is encoded to bytes
-    message_bytes = message.encode('utf-8')
+    message_bytes = message.encode("utf-8")
 
     return private_key.sign_recoverable(message_bytes)
-
 
 
 """

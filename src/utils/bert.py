@@ -13,7 +13,7 @@ class BertEmbedding:
 
     """
 
-    def __init__(self, model_name='bert-base-uncased', random_seed=42):
+    def __init__(self, model_name="bert-base-uncased", random_seed=42):
         """
         Initialize the BertEmbedding class with the given model name and random seed
 
@@ -30,7 +30,9 @@ class BertEmbedding:
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(random_seed)
 
-    def generate_embeddings(self, texts, add_special_tokens=True, cls_only=False, max_length=None):
+    def generate_embeddings(
+        self, texts, add_special_tokens=True, cls_only=False, max_length=None
+    ):
         """
         Generate embeddings for the given texts
 
@@ -43,15 +45,15 @@ class BertEmbedding:
         """
         encoding = self.tokenizer.batch_encode_plus(
             texts,
-            padding='max_length' if max_length else True,
+            padding="max_length" if max_length else True,
             max_length=max_length,
             truncation=True,
-            return_tensors='pt',
-            add_special_tokens=add_special_tokens
+            return_tensors="pt",
+            add_special_tokens=add_special_tokens,
         )
 
-        input_ids = encoding['input_ids']
-        attention_mask = encoding['attention_mask']
+        input_ids = encoding["input_ids"]
+        attention_mask = encoding["attention_mask"]
 
         with torch.no_grad():
             outputs = self.model(input_ids, attention_mask=attention_mask)
@@ -88,7 +90,9 @@ class BertEmbedding:
         :return: Maximum cosine similarity between the query and document embeddings
         """
         # Convert embeddings to numpy arrays outside the loop
-        query_embeddings_np = query_embeddings.numpy()[0, :, :]  # Assuming the first query is the only one used
+        query_embeddings_np = query_embeddings.numpy()[
+            0, :, :
+        ]  # Assuming the first query is the only one used
         doc_embeddings_np = doc_embeddings.numpy()
 
         # Compute all cosine similarities at once if memory allows

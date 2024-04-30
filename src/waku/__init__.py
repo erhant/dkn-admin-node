@@ -1,5 +1,3 @@
 from .rest import WakuClient
 
-__all__ = [
-    "WakuClient"
-]
+__all__ = ["WakuClient"]

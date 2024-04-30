@@ -83,7 +83,10 @@ class Publisher:
             )
             task_json = task_model.json()
             signature = self._sign_message(self.config.dria_private_key, task_json)
-            self.waku.push_content_topic(str_to_base64(signature.hex() + task_json), self.config.input_content_topic)
+            self.waku.push_content_topic(
+                str_to_base64(signature.hex() + task_json),
+                self.config.input_content_topic,
+            )
         except Exception as e:
             logger.error(f"Failed to publish task: {e}")
 

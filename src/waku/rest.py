@@ -8,7 +8,9 @@ import requests
 from src.models import WakuSubscriptionError, WakuClientError, WakuContentTopicError
 from src.config import config
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
@@ -40,9 +42,11 @@ class WakuClient:
         :raises WakuSubscriptionError: If there is an error subscribing to the topic.
         """
         try:
-            response = requests.post(f"{self.base_url}/relay/v1/subscriptions",
-                                     data=json.dumps([f"{urllib.parse.quote_plus(topic)}"]),
-                                     headers={"Content-Type": "application/json"})
+            response = requests.post(
+                f"{self.base_url}/relay/v1/subscriptions",
+                data=json.dumps([f"{urllib.parse.quote_plus(topic)}"]),
+                headers={"Content-Type": "application/json"},
+            )
             response.raise_for_status()
             return True
         except requests.exceptions.RequestException as e:
@@ -73,18 +77,23 @@ class WakuClient:
         :raises WakuContentTopicError: If there is an error getting the content topic.
         """
         try:
-            response = requests.get(f"{self.base_url}/relay/v1/auto/messages/{urllib.parse.quote_plus(content_topic)}",
-                                    headers={"Accept": "application/json"})
+            response = requests.get(
+                f"{self.base_url}/relay/v1/auto/messages/{urllib.parse.quote_plus(content_topic)}",
+                headers={"Accept": "application/json"},
+            )
             if response.status_code == 404:
                 self.subscribe_topic(urllib.parse.quote_plus(content_topic))
                 response = requests.get(
                     f"{self.base_url}/relay/v1/auto/messages/{urllib.parse.quote_plus(content_topic)}",
-                    headers={"Accept": "application/json"})
+                    headers={"Accept": "application/json"},
+                )
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to get content topic {content_topic}: {e}")
-            raise WakuContentTopicError(f"Failed to get content topic {content_topic}") from e
+            raise WakuContentTopicError(
+                f"Failed to get content topic {content_topic}"
+            ) from e
 
     def push_content_topic(self, data: Union[str, bytes], content_topic: str) -> str:
         """
@@ -96,18 +105,22 @@ class WakuClient:
         :raises WakuContentTopicError: If there is an error pushing the content topic.
         """
         try:
-            response = requests.post(f"{self.base_url}/relay/v1/auto/messages",
-                                     json={"payload": data,
-                                           "contentTopic": content_topic},
-                                     headers={"Content-Type": "application/json"})
+            response = requests.post(
+                f"{self.base_url}/relay/v1/auto/messages",
+                json={"payload": data, "contentTopic": content_topic},
+                headers={"Content-Type": "application/json"},
+            )
             if response.status_code == 404:
                 self.subscribe_topic(content_topic)
-                response = requests.post(f"{self.base_url}/relay/v1/auto/messages",
-                                         json={"payload": data,
-                                               "contentTopic": content_topic},
-                                         headers={"Content-Type": "application/json"})
+                response = requests.post(
+                    f"{self.base_url}/relay/v1/auto/messages",
+                    json={"payload": data, "contentTopic": content_topic},
+                    headers={"Content-Type": "application/json"},
+                )
             response.raise_for_status()
             return response.text
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to push content topic {content_topic}: {e}")
-            raise WakuContentTopicError(f"Failed to push content topic {content_topic}") from e
+            raise WakuContentTopicError(
+                f"Failed to push content topic {content_topic}"
+            ) from e

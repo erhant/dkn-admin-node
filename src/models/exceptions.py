@@ -3,7 +3,6 @@ class WakuClientError(Exception):
 
 
 class WakuSubscriptionError(WakuClientError):
-
     def __init__(self, msg: str):
         """
         Raised when there is an error subscribing to a topic.

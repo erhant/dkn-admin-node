@@ -53,10 +53,14 @@ class Aggregator:
                         logger.error("Failed to process task properly.")
                 else:
                     logger.warning("No available tasks")
-                    time.sleep(10)  # Sleep to prevent tight loop if no tasks are available
+                    time.sleep(
+                        10
+                    )  # Sleep to prevent tight loop if no tasks are available
             except Exception as e:
                 logger.error(f"Error during task fetching and processing: {e}")
-                time.sleep(10)  # Sleep before retrying to ensure we don't hammer the system or service
+                time.sleep(
+                    10
+                )  # Sleep before retrying to ensure we don't hammer the system or service
 
     def process_task(self, task_data: TaskModel) -> Optional[Dict]:
         """Process an individual task.
@@ -76,12 +80,17 @@ class Aggregator:
             bf_bytes = task_data.bloom_filter
             bloom = BloomFilter.from_bytes(bf_bytes, self.bloom.hashes())
 
-            truthful_nodes = [result for result in topic_results if bloom.contains(result['node_id'])]
+            truthful_nodes = [
+                result for result in topic_results if bloom.contains(result["node_id"])
+            ]
 
             if len(truthful_nodes) == self.config.compute_by_job:
-                texts = [result['text'] for result in truthful_nodes]
+                texts = [result["text"] for result in truthful_nodes]
                 texts_embeddings = self.bert.generate_embeddings(texts)
-                dists = [self.bert.maxsim(e.unsqueeze(0), texts_embeddings) for e in texts_embeddings]
+                dists = [
+                    self.bert.maxsim(e.unsqueeze(0), texts_embeddings)
+                    for e in texts_embeddings
+                ]
                 best_index = dists.index(max(dists))
                 return truthful_nodes[best_index]
             else:

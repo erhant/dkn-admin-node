@@ -5,5 +5,5 @@ __all__ = [
     "TaskModel",
     "WakuClientError",
     "WakuSubscriptionError",
-    "WakuContentTopicError"
+    "WakuContentTopicError",
 ]

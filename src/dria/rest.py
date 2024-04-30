@@ -3,7 +3,9 @@ import logging
 import requests
 
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class DriaClient:
@@ -27,9 +29,9 @@ class DriaClient:
         """Helper method to handle requests"""
         url = f"{self.base_url}{endpoint}"
         try:
-            if method.lower() == 'get':
+            if method.lower() == "get":
                 response = self.session.get(url)
-            elif method.lower() == 'post':
+            elif method.lower() == "post":
                 response = self.session.post(url, json=data)
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
@@ -39,7 +41,9 @@ class DriaClient:
             return response.json()
 
         except requests.HTTPError as e:
-            logging.error(f"HTTP error occurred: {e} - {response.status_code} - {response.text}")
+            logging.error(
+                f"HTTP error occurred: {e} - {response.status_code} - {response.text}"
+            )
             raise
         except requests.RequestException as e:
             logging.error(f"Request failed: {e}")
@@ -50,11 +54,11 @@ class DriaClient:
 
     def add_available_nodes(self, nodes):
         """Add available nodes to the database"""
-        return self._make_request('post', '/nodes/add', data=nodes)
+        return self._make_request("post", "/nodes/add", data=nodes)
 
     def fetch_tasks(self):
         """Fetch all tasks"""
-        tasks = self._make_request('get', '/tasks/publisher')
+        tasks = self._make_request("get", "/tasks/publisher")
         task_status, task_data = tasks.get("success", False), tasks.get("data", [])
         if task_status:
             return task_data
@@ -63,4 +67,4 @@ class DriaClient:
 
     def fetch_aggregation_tasks(self):
         """Fetch aggregation tasks"""
-        return self._make_request('get', '/tasks/aggregation')
+        return self._make_request("get", "/tasks/aggregation")

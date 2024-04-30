@@ -5,10 +5,14 @@ from typing import Optional
 class Config:
     def __init__(self):
         self.node_auth_key: str = self._get_env_var("NODE_AUTH_KEY", "default_auth_key")
-        self.dria_private_key: str = self._get_env_var("DRIA_PRIVATE_KEY",
-                                                       "6472696164726961647269616472696164726961647269616472696164726961")
+        self.dria_private_key: str = self._get_env_var(
+            "DRIA_PRIVATE_KEY",
+            "6472696164726961647269616472696164726961647269616472696164726961",
+        )
         self.aggregator_workers: int = self._get_env_var("AGGREGATOR_WORKERS", 1, int)
-        self.waku_base_url: str = self._get_env_var("WAKU_BASE_URL", "http://127.0.0.1:8645")
+        self.waku_base_url: str = self._get_env_var(
+            "WAKU_BASE_URL", "http://127.0.0.1:8645"
+        )
         self.publisher_workers: str = self._get_env_var("PUBLISHER_WORKERS", 1, int)
         self.monitoring_workers: int = self._get_env_var("MONITORING_WORKERS", 1, int)
         self.monitoring_interval: int = 10
@@ -17,10 +21,14 @@ class Config:
         self.heartbeat_topic: str = "/dria/0/heartbeat/proto"
         self.task_timeout_minute: int = 3
         self.compute_by_job: int = 3
-        self.dria_base_url: str = self._get_env_var("DRIA_BASE_URL", "http://0.0.0.0:8006")
+        self.dria_base_url: str = self._get_env_var(
+            "DRIA_BASE_URL", "http://0.0.0.0:8006"
+        )
 
     @staticmethod
-    def _get_env_var(key: str, default_value: Optional[str] = None, value_type: type = str):
+    def _get_env_var(
+        key: str, default_value: Optional[str] = None, value_type: type = str
+    ):
         """
         Retrieves an environment variable value from the system.
 

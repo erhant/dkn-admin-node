@@ -8,7 +8,13 @@ import sha3
 
 from src.config import Config
 from src.dria import DriaClient
-from src.utils import recover_public_key, sign_address, uncompressed_public_key, str_to_base64, base64_to_json
+from src.utils import (
+    recover_public_key,
+    sign_address,
+    uncompressed_public_key,
+    str_to_base64,
+    base64_to_json,
+)
 from src.waku import WakuClient
 
 logger = logging.getLogger(__name__)
@@ -63,14 +69,23 @@ class Monitor:
         """
         while True:
             uuid_ = str(uuid.uuid4())
-            payload = json.dumps({"uuid": uuid_, "deadline": int(time.time() + self.config.monitoring_interval)})
+            payload = json.dumps(
+                {
+                    "uuid": uuid_,
+                    "deadline": int(time.time() + self.config.monitoring_interval),
+                }
+            )
             signed_uuid = self._sign_message(self.config.dria_private_key, payload)
             try:
                 if not self._send_heartbeat(payload, signed_uuid.hex()):
-                    time.sleep(self.config.polling_interval)  # Short wait before retrying to send heartbeat
+                    time.sleep(
+                        self.config.polling_interval
+                    )  # Short wait before retrying to send heartbeat
                     continue
 
-                time.sleep(self.config.monitoring_interval)  # Wait configured monitoring interval
+                time.sleep(
+                    self.config.monitoring_interval
+                )  # Wait configured monitoring interval
 
                 if self._check_heartbeat(uuid_):
                     logger.info(f"Received heartbeat response for: {uuid_}")
@@ -79,7 +94,9 @@ class Monitor:
 
             except Exception as e:
                 logger.error(f"Error during heartbeat process: {e}")
-                time.sleep(self.config.polling_interval)  # Wait before retrying the entire process
+                time.sleep(
+                    self.config.polling_interval
+                )  # Wait before retrying the entire process
 
     def _send_heartbeat(self, payload: str, signature: str) -> bool:
         """
@@ -92,8 +109,9 @@ class Monitor:
         Returns:
             bool: True if successful, False otherwise.
         """
-        status = self.waku.push_content_topic(str_to_base64(signature + payload),
-                                              self.config.heartbeat_topic)
+        status = self.waku.push_content_topic(
+            str_to_base64(signature + payload), self.config.heartbeat_topic
+        )
         if not status:
             logger.error(f"Failed to send heartbeat: {payload}")
             return False
@@ -113,7 +131,9 @@ class Monitor:
         """
         topic = self.waku.get_content_topic(f"/dria/0/{uuid_}/proto")
         if topic:
-            nodes_as_address = self._decrypt_nodes([base64_to_json(t["payload"]) for t in topic], uuid_)
+            nodes_as_address = self._decrypt_nodes(
+                [base64_to_json(t["payload"]) for t in topic], uuid_
+            )
             self.dria_client.add_available_nodes(nodes_as_address)
             return True
         logger.error(f"Failed to receive heartbeat response: {uuid_}")
