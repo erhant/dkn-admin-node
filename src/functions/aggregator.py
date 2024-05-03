@@ -5,9 +5,8 @@ from typing import Dict, Optional
 from fastbloom_rs import BloomFilter
 
 from src.config import Config
-
-from src.models import TaskModel
 from src.dria import DriaClient
+from src.models import TaskModel
 from src.utils import BertEmbedding
 from src.waku import WakuClient
 
@@ -21,30 +20,45 @@ class Aggregator:
 
     def __init__(self, config: Config):
         self.config = config
-        self.dria_client = self._initialize_dria_client()
-        self.waku = WakuClient()
-        self.bert = BertEmbedding()
-        self.bloom = BloomFilter(128, 0.01)
+        self.dria_client: Optional[DriaClient] = None
+        self.waku: Optional[WakuClient] = None
+        self.bert: Optional[BertEmbedding] = None
+        self.bloom: Optional[BloomFilter] = None
+        self._initialize_components()
 
-    def _initialize_dria_client(self) -> DriaClient:
-        """Initialize Dria client with secret auth key.
-
-        Returns:
-            DriaClient: Dria client object.
+    def _initialize_components(self):
+        """
+        Initialize the required components (DRIA client, Waku client, Bert, and Bloom filter).
         """
         try:
-            client = DriaClient(self.config)
+            self.dria_client = DriaClient(self.config)
             logger.info("DRIA Client initialized successfully")
-            return client
         except Exception as e:
-            logger.error(f"Failed to initialize DRIA Client: {e}")
-            raise  # Raising to ensure failure in client initialization stops the process
+            logger.error(f"Failed to initialize DRIA Client: {e}", exc_info=True)
+
+        try:
+            self.waku = WakuClient()
+            logger.info("Waku Client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Waku Client: {e}", exc_info=True)
+
+        try:
+            self.bert = BertEmbedding()
+            logger.info("Bert Embedding initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Bert Embedding: {e}", exc_info=True)
+
+        try:
+            self.bloom = BloomFilter(128, 0.01)
+            logger.info("Bloom Filter initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Bloom Filter: {e}", exc_info=True)
 
     def run(self):
         """Continuously fetch and process tasks."""
         while True:
             try:
-                task_id = self.dria_client.fetch_tasks()
+                task_id = self._fetch_tasks()
                 if task_id:
                     output = self.process_task(task_id)
                     if output:
@@ -53,14 +67,30 @@ class Aggregator:
                         logger.error("Failed to process task properly.")
                 else:
                     logger.warning("No available tasks")
-                    time.sleep(
-                        10
-                    )  # Sleep to prevent tight loop if no tasks are available
+                    time.sleep(10)  # Sleep to prevent tight loop if no tasks are available
             except Exception as e:
-                logger.error(f"Error during task fetching and processing: {e}")
-                time.sleep(
-                    10
-                )  # Sleep before retrying to ensure we don't hammer the system or service
+                logger.error(f"Error during task fetching and processing: {e}", exc_info=True)
+                time.sleep(10)  # Sleep before retrying to ensure we don't hammer the system or service
+
+    def _fetch_tasks(self) -> Optional[TaskModel]:
+        """
+        Fetch tasks from the DRIA client.
+
+        Returns:
+            Optional[TaskModel]: Task data, or None if no tasks are available or the DRIA client is not initialized.
+        """
+        if not self.dria_client:
+            logger.warning("DRIA client not initialized, skipping task fetching.")
+            return None
+
+        try:
+            task_id = self.dria_client.fetch_tasks()
+            if task_id:
+                return task_id
+        except Exception as e:
+            logger.error(f"Error fetching tasks: {e}", exc_info=True)
+
+        return None
 
     def process_task(self, task_data: TaskModel) -> Optional[Dict]:
         """Process an individual task.
@@ -71,30 +101,39 @@ class Aggregator:
         Returns:
             Optional[Dict]: Processed task output, or None if task processing failed
         """
+        if not self.waku or not self.bert or not self.bloom:
+            logger.warning("Required components not initialized, skipping task processing.")
+            return None
+
         if task_data.timestamp < time.time():
             topic_results = self.waku.get_content_topic(f"/dria/2/{task_data.id}/proto")
             if len(topic_results) < self.config.compute_by_job:
                 logger.warning("Task is not completed on given time.")
                 return None
 
-            bf_bytes = task_data.bloom_filter
-            bloom = BloomFilter.from_bytes(bf_bytes, self.bloom.hashes())
+            try:
+                bf_bytes = task_data.bloom_filter
+                bloom = BloomFilter.from_bytes(bf_bytes, self.bloom.hashes())
 
-            truthful_nodes = [
-                result for result in topic_results if bloom.contains(result["node_id"])
-            ]
-
-            if len(truthful_nodes) == self.config.compute_by_job:
-                texts = [result["text"] for result in truthful_nodes]
-                texts_embeddings = self.bert.generate_embeddings(texts)
-                dists = [
-                    self.bert.maxsim(e.unsqueeze(0), texts_embeddings)
-                    for e in texts_embeddings
+                truthful_nodes = [
+                    result for result in topic_results if bloom.contains(result["node_id"])
                 ]
-                best_index = dists.index(max(dists))
-                return truthful_nodes[best_index]
-            else:
-                logger.error("Node is not truthful.")
+
+                if len(truthful_nodes) == self.config.compute_by_job:
+                    texts = [result["text"] for result in truthful_nodes]
+                    texts_embeddings = self.bert.generate_embeddings(texts)
+                    dists = [
+                        self.bert.maxsim(e.unsqueeze(0), texts_embeddings)
+                        for e in texts_embeddings
+                    ]
+                    best_index = dists.index(max(dists))
+                    return truthful_nodes[best_index]
+                else:
+                    logger.error("Node is not truthful.")
+            except Exception as e:
+                logger.error(f"Error processing task: {e}", exc_info=True)
         else:
             logger.warning("Task timestamp is in the future.")
             return None
+
+        return None

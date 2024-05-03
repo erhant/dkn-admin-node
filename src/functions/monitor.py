@@ -2,7 +2,7 @@ import json
 import logging
 import time
 import uuid
-from typing import List
+from typing import List, Optional
 
 import sha3
 
@@ -27,8 +27,25 @@ class Monitor:
 
     def __init__(self, config: Config):
         self.config = config
-        self.dria_client = self._initialize_client()
-        self.waku = WakuClient()
+        self.dria_client: Optional[DriaClient] = None
+        self.waku: Optional[WakuClient] = None
+        self._initialize_clients()
+
+    def _initialize_clients(self):
+        """
+        Initialize the DRIA client and Waku client.
+        """
+        try:
+            self.dria_client = DriaClient(self.config)
+            logger.info("DRIA Client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize DRIA Client: {e}", exc_info=True)
+
+        try:
+            self.waku = WakuClient()
+            logger.info("Waku Client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Waku Client: {e}", exc_info=True)
 
     @staticmethod
     def _sign_message(private_key: str, message: str) -> bytes:
@@ -41,27 +58,15 @@ class Monitor:
 
         Returns:
             bytes: The signature of the message.
+
+        Raises:
+            Exception: If there is an error signing the message.
         """
         try:
             return sign_address(private_key, message)
         except Exception as e:
-            logger.error(f"Error signing message: {e}")
-            raise
-
-    def _initialize_client(self) -> DriaClient:
-        """
-        Initialize the DRIA client with the secret authentication key.
-
-        Returns:
-            DriaClient: Initialized DRIA client object.
-        """
-        try:
-            client = DriaClient(self.config)
-            logger.info("DRIA Client initialized successfully")
-            return client
-        except Exception as e:
-            logger.error(f"Failed to initialize DRIA Client: {e}")
-            raise  # Raising to ensure failure in client initialization stops the process
+            logger.error(f"Error signing message: {e}", exc_info=True)
+            raise e
 
     def run(self):
         """
@@ -75,17 +80,19 @@ class Monitor:
                     "deadline": int(time.time() + self.config.monitoring_interval),
                 }
             )
-            signed_uuid = self._sign_message(self.config.dria_private_key, payload)
+            try:
+                signed_uuid = self._sign_message(self.config.dria_private_key, payload)
+            except Exception as e:
+                logger.error(f"Error signing heartbeat payload: {e}", exc_info=True)
+                time.sleep(self.config.polling_interval)
+                continue
+
             try:
                 if not self._send_heartbeat(payload, signed_uuid.hex()):
-                    time.sleep(
-                        self.config.polling_interval
-                    )  # Short wait before retrying to send heartbeat
+                    time.sleep(self.config.polling_interval)
                     continue
 
-                time.sleep(
-                    self.config.monitoring_interval
-                )  # Wait configured monitoring interval
+                time.sleep(self.config.monitoring_interval)
 
                 if self._check_heartbeat(uuid_):
                     logger.info(f"Received heartbeat response for: {uuid_}")
@@ -93,10 +100,8 @@ class Monitor:
                     logger.error(f"No response received for: {uuid_}")
 
             except Exception as e:
-                logger.error(f"Error during heartbeat process: {e}")
-                time.sleep(
-                    self.config.polling_interval
-                )  # Wait before retrying the entire process
+                logger.error(f"Error during heartbeat process: {e}", exc_info=True)
+                time.sleep(self.config.polling_interval)
 
     def _send_heartbeat(self, payload: str, signature: str) -> bool:
         """
@@ -109,6 +114,10 @@ class Monitor:
         Returns:
             bool: True if successful, False otherwise.
         """
+        if not self.waku:
+            logger.warning("Waku client not initialized, skipping heartbeat sending.")
+            return False
+
         status = self.waku.push_content_topic(
             str_to_base64(signature + payload), self.config.heartbeat_topic
         )
@@ -129,13 +138,24 @@ class Monitor:
         Returns:
             bool: True if a response is received, False otherwise.
         """
+        if not self.waku:
+            logger.warning("Waku client not initialized, skipping heartbeat checking.")
+            return False
+
         topic = self.waku.get_content_topic(f"/dria/0/{uuid_}/proto")
         if topic:
-            nodes_as_address = self._decrypt_nodes(
-                [base64_to_json(t["payload"]) for t in topic], uuid_
-            )
-            self.dria_client.add_available_nodes(nodes_as_address)
-            return True
+            try:
+                nodes_as_address = self._decrypt_nodes(
+                    [base64_to_json(t["payload"]) for t in topic], uuid_
+                )
+                if self.dria_client:
+                    self.dria_client.add_available_nodes(nodes_as_address)
+                else:
+                    logger.warning("DRIA client not initialized, skipping node addition.")
+                return True
+            except Exception as e:
+                logger.error(f"Error processing heartbeat response: {e}", exc_info=True)
+
         logger.error(f"Failed to receive heartbeat response: {uuid_}")
         return False
 
@@ -159,5 +179,5 @@ class Monitor:
                 address = sha3.keccak_256(public_key[1:]).digest()[-20:].hex()
                 node_addresses.append(address)
             except Exception as e:
-                logger.error(f"Failed to decrypt node: {e}")
+                logger.error(f"Failed to decrypt node: {e}", exc_info=True)
         return node_addresses
