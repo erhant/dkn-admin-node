@@ -105,6 +105,8 @@ class Publisher:
                 str_to_base64(signature.hex() + task_json),
                 self.config.input_content_topic,
             )
+            logger.info(f"Task published successfully: {task.id}")
+            self.dria_client.add_tasks_to_queue(task.id)
         except Exception as e:
             logger.error(f"Failed to publish task: {e}", exc_info=True)
 

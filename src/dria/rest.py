@@ -1,9 +1,7 @@
 import logging
-from typing import Dict, List, Union
+from typing import Union
 
 import requests
-
-from src.utils.task_utils import resolve_tasks
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -88,7 +86,7 @@ class DriaClient:
         """
         try:
             tasks = self._make_request("get", "/tasks/publisher")
-            task_status, task_data = tasks.get("success", False), tasks.get("data", [])
+            task_status, task_data = tasks.get("success", False), tasks.get("data", {})
             if task_status:
                 return task_data["tasks"]
             logging.warning(task_data.get("message", "No tasks found"))
@@ -97,7 +95,7 @@ class DriaClient:
             logging.error(f"Error resolving tasks: {e}")
             return []
 
-    def fetch_aggregation_tasks(self) -> Union[dict, list]:
+    def fetch_aggregation_tasks(self):
         """
         Fetch aggregation tasks.
 
@@ -107,3 +105,17 @@ class DriaClient:
         :raises Exception: If any other unexpected error occurs
         """
         return self._make_request("get", "/tasks/aggregation")
+
+    def add_tasks_to_queue(self, task_id) -> Union[dict, list]:
+        """
+        Add tasks to the queue.
+
+        :param task_id: Task ID to add to the queue
+
+        :return: Response data from the API
+        :raises requests.HTTPError: If the API request fails
+        :raises requests.RequestException: If there's a general issue with the request
+        :raises Exception: If any other unexpected error occurs
+        """
+
+        return self._make_request("post", "/tasks/add", data={"task_id": task_id})

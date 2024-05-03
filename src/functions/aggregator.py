@@ -58,7 +58,7 @@ class Aggregator:
         """Continuously fetch and process tasks."""
         while True:
             try:
-                task_id = self._fetch_tasks()
+                task_id = self._fetch_task()
                 if task_id:
                     output = self.process_task(task_id)
                     if output:
@@ -72,9 +72,9 @@ class Aggregator:
                 logger.error(f"Error during task fetching and processing: {e}", exc_info=True)
                 time.sleep(10)  # Sleep before retrying to ensure we don't hammer the system or service
 
-    def _fetch_tasks(self) -> Optional[TaskModel]:
+    def _fetch_task(self) -> Optional[TaskModel]:
         """
-        Fetch tasks from the DRIA client.
+        Fetch task from the DRIA client.
 
         Returns:
             Optional[TaskModel]: Task data, or None if no tasks are available or the DRIA client is not initialized.
@@ -84,9 +84,10 @@ class Aggregator:
             return None
 
         try:
-            task_id = self.dria_client.fetch_tasks()
-            if task_id:
+            task_id = self.dria_client.fetch_aggregation_tasks()
+            if task_id is None:
                 return task_id
+            logger.info(f"No tasks found")
         except Exception as e:
             logger.error(f"Error fetching tasks: {e}", exc_info=True)
 
