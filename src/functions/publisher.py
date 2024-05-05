@@ -75,7 +75,7 @@ class Publisher:
                 for task in tasks:
                     task = TaskDeliveryModel(**task)
                     self._publish_task(task)
-                    self.dria_client.mark_task_published(task.id)
+                    self.dria_client.add_tasks_to_queue(task.id)
 
         except Exception as e:
             logger.error(f"Failed to handle available tasks: {e}", exc_info=True)
@@ -106,7 +106,6 @@ class Publisher:
                 self.config.input_content_topic,
             )
             logger.info(f"Task published successfully: {task.id}")
-            self.dria_client.add_tasks_to_queue(task.id)
         except Exception as e:
             logger.error(f"Failed to publish task: {e}", exc_info=True)
 
