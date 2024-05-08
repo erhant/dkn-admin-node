@@ -104,7 +104,7 @@ class DriaClient:
         :raises requests.RequestException: If there's a general issue with the request
         :raises Exception: If any other unexpected error occurs
         """
-        return self._make_request("get", "/tasks/aggregation")
+        return self._make_request("get", "/tasks/aggregator")
 
     def add_tasks_to_queue(self, task_id) -> Union[dict, list]:
         """

@@ -32,8 +32,8 @@ def main():
     print("Starting tasks...")
     print(config.monitoring_workers, config.aggregator_workers, config.publisher_workers)
     tasks: Dict[Type[Union[Monitor, Publisher, Aggregator]], int] = {
-        #Aggregator: config.aggregator_workers,
-        #Monitor: config.monitoring_workers,
+        Aggregator: config.aggregator_workers,
+        Monitor: config.monitoring_workers,
         Publisher: config.publisher_workers,
     }
 

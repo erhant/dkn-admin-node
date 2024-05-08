@@ -18,4 +18,4 @@ class TaskDeliveryModel(BaseModel):
     id: str
     filter: FilterModel
     prompt: str
-    pubKey: str
+    public_key: str

@@ -1,6 +1,6 @@
-import os
 import logging
-from typing import Optional, Any
+import os
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +10,7 @@ class Config:
         self.node_auth_key: str = self._get_env_var("NODE_AUTH_KEY", "default_auth_key")
         self.dria_private_key: str = self._get_env_var(
             "DRIA_PRIVATE_KEY",
-            "6472696164726961647269616472696164726961647269616472696164726961",
+            self._get_env_var("DRIA_PRIVATE_KEY", "dria_private_key"),
         )
         self.aggregator_workers: int = self._get_env_var("AGGREGATOR_WORKERS", 1, int)
         self.waku_base_url: str = self._get_env_var(

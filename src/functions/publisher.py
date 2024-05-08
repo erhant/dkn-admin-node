@@ -97,7 +97,7 @@ class Publisher:
                 filter=task.filter,
                 input=task.prompt,
                 deadline=int(time.time_ns() + 60*1000000000 * self.config.task_timeout_minute),
-                publicKey=task.pubKey,
+                publicKey=task.public_key if task.public_key[:2] != "0x" else task.public_key[2:],
             )
             task_json = task_model.json()
             signature = self._sign_message(self.config.dria_private_key, task_json)
