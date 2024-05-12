@@ -3,10 +3,11 @@ import time
 from typing import Optional
 
 from src.config import Config
-from src.dria import DriaClient
 from src.models import TaskModel
 from src.models.models import TaskDeliveryModel
-from src.utils import sign_address, str_to_base64
+from src.utils import str_to_base64
+from src.utils.ec import sign_message
+from src.utils.task_manager import TaskManager
 from src.waku import WakuClient
 
 logger = logging.getLogger(__name__)
@@ -19,19 +20,19 @@ class Publisher:
 
     def __init__(self, config: Config):
         self.config = config
-        self.dria_client: Optional[DriaClient] = None
+        self.task_manager: Optional[TaskManager] = None
         self.waku: Optional[WakuClient] = None
         self._initialize_clients()
 
     def _initialize_clients(self):
         """
-        Initialize the DRIA client and Waku client.
+        Initialize the Task Manager and Waku client.
         """
         try:
-            self.dria_client = DriaClient(self.config)
-            logger.info("DRIA Client initialized successfully")
+            self.task_manager = TaskManager()
+            logger.info("Task Manager initialized successfully")
         except Exception as e:
-            logger.error(f"Failed to initialize DRIA Client: {e}", exc_info=True)
+            logger.error(f"Failed to initialize Task Manager: {e}", exc_info=True)
 
         try:
             self.waku = WakuClient()
@@ -39,43 +40,19 @@ class Publisher:
         except Exception as e:
             logger.error(f"Failed to initialize Waku Client: {e}", exc_info=True)
 
-    @staticmethod
-    def _sign_message(private_key: str, message: str) -> bytes:
-        """
-        Sign a message using the provided private key.
-
-        Args:
-            private_key (str): The private key to use for signing.
-            message (str): The message to sign.
-
-        Returns:
-            bytes: The signature of the message.
-
-        Raises:
-            Exception: If there is an error signing the message.
-        """
-        try:
-            return sign_address(private_key, message)
-        except Exception as e:
-            logger.error(f"Error signing message: {e}", exc_info=True)
-            raise e
-
     def _handle_available_tasks(self):
         """
         Handle task retrieval and processing if available.
         """
-        if not self.dria_client:
-            logger.warning("DRIA client not initialized, skipping task retrieval.")
-            return
 
         try:
-            tasks = self.dria_client.fetch_tasks()
-            if tasks:
-                logger.info(f"{len(tasks)} tasks retrieved, ready for processing.")
-                for task in tasks:
-                    task = TaskDeliveryModel(**task)
-                    self._publish_task(task)
-                    self.dria_client.add_tasks_to_queue(task.id)
+            task = self.task_manager.get_tasks()
+            if task:
+                logger.info(f"{len(task)} tasks retrieved, ready for processing.")
+                task = TaskDeliveryModel(**task)
+                task = self._publish_task(task)
+                self.task_manager.add_aggregator_task(task)
+            time.sleep(self.config.polling_interval)
 
         except Exception as e:
             logger.error(f"Failed to handle available tasks: {e}", exc_info=True)
@@ -86,6 +63,9 @@ class Publisher:
 
         Args:
             task (TaskDeliveryModel): Task data.
+
+        Returns:
+            TaskModel: Task data if successful, None otherwise.
         """
         if not self.waku:
             logger.warning("Waku client not initialized, skipping task publishing.")
@@ -96,16 +76,17 @@ class Publisher:
                 taskId=task.id,
                 filter=task.filter,
                 input=task.prompt,
-                deadline=int(time.time_ns() + 60*1000000000 * self.config.task_timeout_minute),
+                deadline=int(time.time_ns() + 60 * 1000000000 * self.config.task_timeout_minute),
                 publicKey=task.public_key if task.public_key[:2] != "0x" else task.public_key[2:],
             )
             task_json = task_model.json()
-            signature = self._sign_message(self.config.dria_private_key, task_json)
+            signature = sign_message(self.config.dria_private_key, task_json)
             self.waku.push_content_topic(
                 str_to_base64(signature.hex() + task_json),
                 self.config.input_content_topic,
             )
             logger.info(f"Task published successfully: {task.id}")
+            return task_model
         except Exception as e:
             logger.error(f"Failed to publish task: {e}", exc_info=True)
 

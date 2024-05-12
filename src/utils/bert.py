@@ -1,5 +1,5 @@
-import random
 import logging
+import random
 from typing import List, Union
 
 import numpy as np

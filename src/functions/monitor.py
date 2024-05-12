@@ -7,7 +7,7 @@ from typing import List, Optional
 import sha3
 
 from src.config import Config
-from src.dria import DriaClient
+from src.models import NodeModel
 from src.utils import (
     recover_public_key,
     sign_address,
@@ -15,6 +15,7 @@ from src.utils import (
     str_to_base64,
     base64_to_json,
 )
+from src.utils.task_manager import TaskManager
 from src.waku import WakuClient
 
 logger = logging.getLogger(__name__)
@@ -27,19 +28,19 @@ class Monitor:
 
     def __init__(self, config: Config):
         self.config = config
-        self.dria_client: Optional[DriaClient] = None
+        self.task_manager: Optional[TaskManager] = None
         self.waku: Optional[WakuClient] = None
         self._initialize_clients()
 
     def _initialize_clients(self):
         """
-        Initialize the DRIA client and Waku client.
+        Initialize the Task Manager and Waku client.
         """
         try:
-            self.dria_client = DriaClient(self.config)
-            logger.info("DRIA Client initialized successfully")
+            self.task_manager = TaskManager()
+            logger.info("Task Manager initialized successfully")
         except Exception as e:
-            logger.error(f"Failed to initialize DRIA Client: {e}", exc_info=True)
+            logger.error(f"Failed to initialize Task Manager: {e}", exc_info=True)
 
         try:
             self.waku = WakuClient()
@@ -148,13 +149,14 @@ class Monitor:
                 nodes_as_address = self._decrypt_nodes(
                     [base64_to_json(t["payload"]) for t in topic], uuid_
                 )
-                if self.dria_client:
-                    self.dria_client.add_available_nodes(nodes_as_address)
-                else:
-                    logger.warning("DRIA client not initialized, skipping node addition.")
+                self.task_manager.add_available_nodes(NodeModel(uuid=uuid_, nodes=nodes_as_address))
+
                 return True
             except Exception as e:
                 logger.error(f"Error processing heartbeat response: {e}", exc_info=True)
+        else:
+            print("ON EMPTY")
+            self.task_manager.add_available_nodes(NodeModel(uuid=uuid_, nodes=[]))
 
         logger.error(f"Failed to receive heartbeat response: {uuid_}")
         return False
@@ -181,3 +183,4 @@ class Monitor:
             except Exception as e:
                 logger.error(f"Failed to decrypt node: {e}", exc_info=True)
         return node_addresses
+

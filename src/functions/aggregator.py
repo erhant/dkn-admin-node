@@ -1,13 +1,16 @@
+import base64
+import json
 import logging
 import time
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 from fastbloom_rs import BloomFilter
 
 from src.config import Config
-from src.dria import DriaClient
-from src.models import TaskModel
+from src.models import AggregatorTaskModel
 from src.utils import BertEmbedding
+from src.utils.ec import decrypt_message, recover_public_key, publickey_to_address
+from src.utils.task_manager import TaskManager
 from src.waku import WakuClient
 
 logger = logging.getLogger(__name__)
@@ -20,7 +23,7 @@ class Aggregator:
 
     def __init__(self, config: Config):
         self.config = config
-        self.dria_client: Optional[DriaClient] = None
+        self.task_manager: Optional[TaskManager] = None
         self.waku: Optional[WakuClient] = None
         self.bert: Optional[BertEmbedding] = None
         self.bloom: Optional[BloomFilter] = None
@@ -28,13 +31,13 @@ class Aggregator:
 
     def _initialize_components(self):
         """
-        Initialize the required components (DRIA client, Waku client, Bert, and Bloom filter).
+        Initialize the required components (Task Manager, Waku client, Bert, and Bloom filter).
         """
         try:
-            self.dria_client = DriaClient(self.config)
-            logger.info("DRIA Client initialized successfully")
+            self.task_manager = TaskManager()
+            logger.info("Task Manager initialized successfully")
         except Exception as e:
-            logger.error(f"Failed to initialize DRIA Client: {e}", exc_info=True)
+            logger.error(f"Failed to initialize Task Manager: {e}", exc_info=True)
 
         try:
             self.waku = WakuClient()
@@ -58,9 +61,9 @@ class Aggregator:
         """Continuously fetch and process tasks."""
         while True:
             try:
-                task_id = self._fetch_task()
-                if task_id:
-                    output = self.process_task(task_id)
+                task = self._fetch_task()
+                if task:
+                    output = self.process_task(AggregatorTaskModel(**task))
                     if output:
                         logger.info(f"Task processed successfully: {output}")
                     else:
@@ -72,69 +75,77 @@ class Aggregator:
                 logger.error(f"Error during task fetching and processing: {e}", exc_info=True)
                 time.sleep(10)  # Sleep before retrying to ensure we don't hammer the system or service
 
-    def _fetch_task(self) -> Optional[TaskModel]:
+    def _fetch_task(self) -> Optional[dict]:
         """
-        Fetch task from the DRIA client.
+        Fetch task from the Task Manager.
 
         Returns:
-            Optional[TaskModel]: Task data, or None if no tasks are available or the DRIA client is not initialized.
+            Optional[Dict]: Task data, or None if no tasks are available or the Task Manager is not initialized.
         """
-        if not self.dria_client:
-            logger.warning("DRIA client not initialized, skipping task fetching.")
+        if self.task_manager is None:
+            logger.warning("Task Manager is not initialized, cannot fetch tasks.")
             return None
 
         try:
-            task_id = self.dria_client.fetch_aggregation_tasks()
-            if task_id is None:
-                return task_id
+            task = self.task_manager.fetch_aggregation_tasks()
+            if task is not None:
+                return task
             logger.info(f"No tasks found")
         except Exception as e:
             logger.error(f"Error fetching tasks: {e}", exc_info=True)
 
         return None
 
-    def process_task(self, task_data: TaskModel) -> Optional[Dict]:
+    def process_task(self, task_data: AggregatorTaskModel) -> Optional[Dict]:
         """Process an individual task.
 
         Args:
-            task_data (TaskModel): Task data
+            task_data (AggregatorTaskModel): Task data
 
         Returns:
             Optional[Dict]: Processed task output, or None if task processing failed
         """
-        if not self.waku or not self.bert or not self.bloom:
+        if not all([self.waku, self.bert, self.bloom]):
             logger.warning("Required components not initialized, skipping task processing.")
             return None
 
         if task_data.timestamp < time.time():
-            topic_results = self.waku.get_content_topic(f"/dria/2/{task_data.id}/proto")
-            if len(topic_results) < self.config.compute_by_job:
-                logger.warning("Task is not completed on given time.")
+            topic_results = self.waku.get_content_topic(f"/dria/0/{task_data.taskId}/proto")
+            if not topic_results:
+                logger.warning("No topic results found for the task.")
                 return None
 
+            bf_bytes = task_data.filter
+
             try:
-                bf_bytes = task_data.bloom_filter
-                bloom = BloomFilter.from_bytes(bf_bytes, self.bloom.hashes())
+                for topic_result in topic_results:
+                    topic_result_data = json.loads(base64.b64decode(topic_result["payload"]).decode("utf-8"))
+                    result = decrypt_message(task_data.privateKey, topic_result_data["ciphertext"])
+                    public_key = recover_public_key(topic_result_data["signature"],
+                                                    bytes.fromhex(result))
+                    address = publickey_to_address(public_key)
 
-                truthful_nodes = [
-                    result for result in topic_results if bloom.contains(result["node_id"])
-                ]
+                    bloom = BloomFilter.from_bytes(bf_bytes.hex.encode("utf-8"), self.bloom.hashes())
 
-                if len(truthful_nodes) == self.config.compute_by_job:
-                    texts = [result["text"] for result in truthful_nodes]
-                    texts_embeddings = self.bert.generate_embeddings(texts)
-                    dists = [
-                        self.bert.maxsim(e.unsqueeze(0), texts_embeddings)
-                        for e in texts_embeddings
+                    truthful_nodes = [
+                        result for result in topic_results if bloom.contains(address)
                     ]
-                    best_index = dists.index(max(dists))
-                    return truthful_nodes[best_index]
-                else:
-                    logger.error("Node is not truthful.")
+
+                    if len(truthful_nodes) == self.config.compute_by_job:
+                        texts = [json.loads(base64.b64decode(result["payload"]).decode("utf-8"))["text"] for result in
+                                 truthful_nodes]
+                        texts_embeddings = self.bert.generate_embeddings(texts)
+                        dists = [
+                            self.bert.maxsim(e.unsqueeze(0), texts_embeddings)
+                            for e in texts_embeddings
+                        ]
+                        best_index = dists.index(max(dists))
+                        return truthful_nodes[best_index]
+                    else:
+                        logger.error("Not enough truthful nodes found to process the task.")
             except Exception as e:
                 logger.error(f"Error processing task: {e}", exc_info=True)
         else:
-            logger.warning("Task timestamp is in the future.")
-            return None
+            logger.warning("Task timestamp is in the future, skipping task processing.")
 
         return None

@@ -119,3 +119,16 @@ class DriaClient:
         """
 
         return self._make_request("post", "/tasks/add", data={"task_id": task_id})
+
+    def trigger_task_generation(self, task_id) -> Union[dict, list]:
+        """
+        Trigger task generation.
+
+        :param task_id: Task ID to trigger generation for
+
+        :return: Response data from the API
+        :raises requests.HTTPError: If the API request fails
+        :raises requests.RequestException: If there's a general issue with the request
+        :raises Exception: If any other unexpected error occurs
+        """
+        return self._make_request("post", "/generate_task", data={"task_id": task_id})
