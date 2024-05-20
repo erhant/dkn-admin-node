@@ -21,58 +21,58 @@ sequenceDiagram
   actor C as Compute
   actor A as Aggregator
 
-  loop
-  alt this is the first-step
-    note over D: receives task request P from frontend
-  else this is not the first-step
-    note over D: receives task request P from Admin
-  end
-  note over D: prepares payload P with task id t
-
-  ###### Generation Step ######
-  rect rgb(125, 75, 75)
-    note over D, A: Generation Step
-    note over C: listens to /task-topic/
-
-    D ->> Q: enqueue(Publisher, P + t)
-    Q ->> P: P + t := dequeue(Publisher)
-
-    P -->> C: /task-topic/ P t
-
-    P ->> Q: enqueue(Aggregation, t)
-    Q ->> A: t := dequeue(Aggregation)
-    note over A: listen to /t/
-    note over C: computes result R := f(P)
-    C -->> A: /t/ R
-    note over A: decide final result R
-  end
-
-
-  ###### Validation Step ######
-  rect rgb(75, 125, 75)
-    note over D, A: Validation Step (if required)
-    note over A: new validation task t_v
-    A -->> C: /validate/ R t_v
-    A ->> Q: enqueue(Aggregation, t_v)
-    Q ->> A: t_v := dequeue(Aggregation)
-    note over C: isValid = f(R)
-    C -->> A: /t_v/ isValid
-    note over A: decide final result R_V
-  end
-
-  ###### Finalization Step ######
-    rect rgb(75, 75, 125)
-    note over D, A: Finalization Step
-
-    alt this is the final-step
-      note over A: id := Storage.upload(results)
-      note over A: DriaL2.register(results)
-      note over A: distribute rewards
-    else this is not the final-step
-    note over A: upload final R_V to server
-      A ->> D: trigger next task with R_V
+  loop task flow
+    alt this is the first-step
+      note over D: receives task request P from frontend
+    else this is not the first-step
+      note over D: receives task request P from Admin
     end
-  end
+    note over D: prepares payload P with task id t
+  
+    ###### Generation Step ######
+    rect rgb(125, 75, 75)
+      note over D, A: Generation Step
+      note over C: listens to /task-topic/
+  
+      D ->> Q: enqueue(Publisher, P + t)
+      Q ->> P: P + t := dequeue(Publisher)
+  
+      P -->> C: /task-topic/ P t
+  
+      P ->> Q: enqueue(Aggregation, t)
+      Q ->> A: t := dequeue(Aggregation)
+      note over A: listen to /t/
+      note over C: computes result R := f(P)
+      C -->> A: /t/ R
+      note over A: decide final result R
+    end
+  
+  
+    ###### Validation Step ######
+    rect rgb(75, 125, 75)
+      note over D, A: Validation Step (if required)
+      note over A: new validation task t_v
+      A -->> C: /validate/ R t_v
+      A ->> Q: enqueue(Aggregation, t_v)
+      Q ->> A: t_v := dequeue(Aggregation)
+      note over C: isValid = f(R)
+      C -->> A: /t_v/ isValid
+      note over A: decide final result R_V
+    end
+  
+    ###### Finalization Step ######
+      rect rgb(75, 75, 125)
+      note over D, A: Finalization Step
+  
+      alt this is the final-step
+        note over A: id := Storage.upload(results)
+        note over A: DriaL2.register(results)
+        note over A: distribute rewards
+      else this is not the final-step
+      note over A: upload final R_V to server
+        A ->> D: trigger next task with R_V
+      end
+    end
   end
 ```
 
